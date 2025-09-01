@@ -52,7 +52,7 @@ const DEFAULT_SETTINGS: Settings = {
   weeklyResetDay: 0,
   useCommentsInWordCount: false,
   targets: [],
-  maxIdleTime: 5000,
+  maxIdleTime: 30000,
   lastReset: new Date(),
   progressHistory: {
     daily: {},
@@ -123,9 +123,16 @@ export default class TargetTracker extends Plugin {
     );
 
     this.registerView(VIEW_TYPE_TARGET, (leaf) => new TargetView(leaf, this));
-
     this.addRibbonIcon("turtle", "Open target view", () => {
       this.activateView();
+    });
+
+    this.addCommand({
+      id: "open-target-view",
+      name: "Open Target View",
+      callback: () => {
+        this.activateView();
+      },
     });
 
     this.addSettingTab(new SettingsTab(this.app, this));
