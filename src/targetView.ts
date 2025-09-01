@@ -16,6 +16,7 @@ interface EditingState {
   period: "none" | "daily" | "weekly";
   target: number;
   multiplier: number;
+  new: boolean;
 }
 
 export class TargetView extends ItemView {
@@ -72,14 +73,15 @@ export class TargetView extends ItemView {
         period: target.period,
         target: target.target,
         multiplier: target instanceof TimeTarget ? target.multiplier : 1,
+        new: false,
       } as EditingState);
       this.renderContent();
     };
-    const archiveButton = headerEl.createEl("button", {
+    const deleteButton = headerEl.createEl("button", {
       cls: "icon-button",
     });
-    setIcon(archiveButton, "trash");
-    archiveButton.onclick = () => {
+    setIcon(deleteButton, "trash");
+    deleteButton.onclick = () => {
       if (confirm(`Are you sure you want to delete target "${target.name}"?`)) {
         this.plugin.settings.targets.remove(target);
         this.renderContent();
@@ -225,13 +227,15 @@ export class TargetView extends ItemView {
       }
       target.name = editingState.name;
       if (target.path !== editingState.path) {
-        if (confirm("Changing the path will reset progress. Continue?")) {
+        if (
+          editingState.new ||
+          confirm("Changing the path will reset progress. Continue?")
+        ) {
           target.path = editingState.path;
           this.plugin.targetManager.setupProgressForTarget(target);
         } else {
           return;
         }
-        this.plugin.targetManager.setupProgressForTarget(target);
       }
       target.path = editingState.path;
       target.period = editingState.period;
@@ -247,6 +251,9 @@ export class TargetView extends ItemView {
       text: "Cancel",
     });
     cancelButton.onclick = () => {
+      if (editingState.new) {
+        this.plugin.settings.targets.remove(target);
+      }
       this.editingStates.delete(target.id);
       this.renderContent();
     };
@@ -279,6 +286,7 @@ export class TargetView extends ItemView {
         period: target.period,
         target: target.target,
         multiplier: 1,
+        new: true,
       } as EditingState);
       this.renderContent();
     };
@@ -293,6 +301,7 @@ export class TargetView extends ItemView {
         period: target.period,
         target: target.target,
         multiplier: target.multiplier,
+        new: true,
       } as EditingState);
       this.renderContent();
     };

@@ -51,6 +51,8 @@ export abstract class Target {
   abstract getTotalProgress(): number;
   abstract updateProgress(file: TFile, count: number): void;
   abstract resetProgress(files: TFile[]): void;
+  abstract removeFile(filepath: string): void;
+  abstract renameFile(oldPath: string, newPath: string): void;
 }
 
 export class WordCountTarget extends Target {
@@ -68,11 +70,7 @@ export class WordCountTarget extends Target {
     previousProgress: FilesProgress,
   ) {
     super(id, name, period, scope, target, progress, path);
-    if (!previousProgress) {
-      this.previousProgress = { ...progress };
-    } else {
-      this.previousProgress = previousProgress;
-    }
+    this.previousProgress = previousProgress;
   }
 
   getNextTarget() {
@@ -86,9 +84,6 @@ export class WordCountTarget extends Target {
       this.path,
       { ...this.progress },
     );
-    for (const key in nextTarget.progress) {
-      nextTarget.progress[key] = 0;
-    }
     return nextTarget;
   }
 
@@ -114,6 +109,9 @@ export class WordCountTarget extends Target {
   updateProgress(file: TFile, count: number) {
     if (this.isTracking(file)) {
       this.progress[file.path] = count;
+      if (!(file.path in this.previousProgress)) {
+        this.previousProgress[file.path] = 0;
+      }
     }
   }
 
@@ -126,6 +124,20 @@ export class WordCountTarget extends Target {
         this.previousProgress[file.path] = 0;
       }
     }
+  }
+
+  removeFile(filepath: string) {
+    delete this.progress[filepath];
+    delete this.previousProgress[filepath];
+  }
+
+  renameFile(oldPath: string, newPath: string) {
+    if (this.isTrackingPath(newPath)) {
+      this.progress[newPath] = this.progress[oldPath] || 0;
+      this.previousProgress[newPath] = this.previousProgress[oldPath] || 0;
+    }
+    delete this.progress[oldPath];
+    delete this.previousProgress[oldPath];
   }
 }
 
@@ -188,5 +200,16 @@ export class TimeTarget extends Target {
         this.progress[file.path] = 0;
       }
     }
+  }
+
+  removeFile(filepath: string) {
+    delete this.progress[filepath];
+  }
+
+  renameFile(oldPath: string, newPath: string) {
+    if (this.isTrackingPath(newPath)) {
+      this.progress[newPath] = this.progress[oldPath] || 0;
+    }
+    delete this.progress[oldPath];
   }
 }

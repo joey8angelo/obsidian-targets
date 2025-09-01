@@ -141,9 +141,7 @@ export default class TargetManager {
   handleDelete(file: TAbstractFile) {
     if (!(file instanceof TFile)) return;
     for (const target of this.plugin.settings.targets) {
-      if (target.isTracking(file)) {
-        delete target.progress[file.path];
-      }
+      target.removeFile(file.path);
     }
     this.plugin.scheduleSave();
     this.plugin.renderTargetView();
@@ -151,12 +149,7 @@ export default class TargetManager {
   handleRename(file: TAbstractFile, oldPath: string) {
     if (!(file instanceof TFile)) return;
     for (const target of this.plugin.settings.targets) {
-      if (target.isTracking(file)) {
-        target.progress[file.path] = target.progress[oldPath] || 0;
-      }
-      if (target.isTrackingPath(oldPath)) {
-        delete target.progress[oldPath];
-      }
+      target.renameFile(oldPath, file.path);
     }
     this.plugin.scheduleSave();
     this.plugin.renderTargetView();
