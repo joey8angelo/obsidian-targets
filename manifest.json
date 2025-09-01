@@ -2,10 +2,9 @@
 	"id": "obsidian-targets",
 	"name": "Targets",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "An Obsidian plugin to manage and track word count and time writing targets in your notes.",
+	"minAppVersion": "1.9.12",
+	"description": "Create and manage word count and time targets for notes and folders across your vault.",
 	"author": "joey8angelo",
-	"authorUrl": "",
-	"fundingUrl": "",
+	"authorUrl": "https://joseph-dangelo.com",
 	"isDesktopOnly": false
 }
