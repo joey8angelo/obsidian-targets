@@ -21,10 +21,10 @@ To create a new target, open the target view with the command palette or with th
 ## Settings
 You can configure the plugin's settings by opening the settings panel and navigating to the "Targets" tab.
 
-`Daily Reset Hour`: This setting allows you to specify the hour of the day when daily targets reset. The default is 12AM.
+`Daily Reset Hour`: The hour of the day when daily targets reset. The default is 12AM.
 
-`Weekly Reset Day`: This setting allows you to specify the day of the week when weekly targets reset. The default is Sunday.
+`Weekly Reset Day`: The day of the week when weekly targets reset. The default is Sunday.
 
-`Max Idle Time (seconds)`: This setting allows you to specify the maximum amount of time that can pass without editing a file before time tracking is paused. The default is 30 seconds.
+`Max Idle Time (seconds)`: The maximum amount of time that can pass without editing a file before time tracking is paused. The default is 30 seconds.
 
-`Include Comments in Word Count`: This setting allows you to specify whether comments should be included in the word count for targets. The default is false.
+`Include Comments in Word Count`: Whether comments should be included in the word count for targets. The default is false.
