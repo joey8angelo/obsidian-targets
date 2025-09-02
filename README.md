@@ -3,6 +3,8 @@ This plugin allows you to create and manage "targets" in Obsidian, which track y
 
 Targets can track word count or time spent on a file or folder. You can set the target to repeat daily, weekly, or not at all. When a target repeats, it will reset its progress at the start of the new period, which means word count tracks the number of new words added during that period.
 
+![Target View Screenshot](images/target-view.png)
+
 ## Installation
 Getting the code:
 ```
