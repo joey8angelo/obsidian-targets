@@ -65,21 +65,13 @@ export default class TargetTracker extends Plugin {
   settings: Settings;
   private settingsDirty = false;
   private saveTimeout: number | null = null;
-  private targetView: TargetView | null = null;
-
-  registerTargetView(view: TargetView) {
-    this.targetView = view;
-  }
-
-  unregisterTargetView(view: TargetView) {
-    if (this.targetView === view) {
-      this.targetView = null;
-    }
-  }
 
   renderTargetView() {
-    if (this.targetView) {
-      this.targetView.renderContent();
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TARGET);
+    const leaf = leaves.length > 0 ? leaves[0] : null;
+    const targetView = leaf?.view instanceof TargetView ? leaf.view : null;
+    if (targetView) {
+      targetView.renderContent();
     }
   }
 

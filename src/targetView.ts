@@ -2,6 +2,7 @@ import {
   ItemView,
   WorkspaceLeaf,
   ProgressBarComponent,
+  ButtonComponent,
   setIcon,
 } from "obsidian";
 import TargetTracker from "./main";
@@ -41,222 +42,296 @@ export class TargetView extends ItemView {
   }
 
   async onOpen() {
-    this.plugin.registerTargetView(this);
     this.renderContent();
   }
 
-  async onClose() {
-    this.plugin.unregisterTargetView(this);
+  async onClose() {}
+
+  private newTarget(type: "wordCount" | "time") {
+    let target = this.plugin.targetManager.newTarget(type);
+
+    this.editingStates.set(target.id, {
+      name: target.name,
+      path: target.path,
+      period: target.period,
+      target: target.target,
+      multiplier: target instanceof TimeTarget ? target.multiplier : 1,
+      new: true,
+    } as EditingState);
+    this.renderContent();
   }
 
-  private renderTarget(container: HTMLElement, target: Target) {
-    if (this.editingStates.get(target.id)) {
-      this.renderEditingTarget(container, target);
-    } else {
-      this.renderDisplayTarget(container, target);
-    }
-  }
-
-  private renderDisplayTarget(container: HTMLElement, target: Target) {
-    const targetEl = container.createDiv({ cls: "target-item" });
-
-    const headerEl = targetEl.createDiv({ cls: "target-header" });
-    headerEl
-      .createDiv({ cls: "target-header-title" })
-      .createEl("h3", { text: target.name });
-    const editButton = headerEl.createEl("button", { cls: "icon-button" });
-    setIcon(editButton, "pencil");
-    editButton.onclick = () => {
-      this.editingStates.set(target.id, {
-        name: target.name,
-        path: target.path,
-        period: target.period,
-        target: target.target,
-        multiplier: target instanceof TimeTarget ? target.multiplier : 1,
-        new: false,
-      } as EditingState);
+  private deleteTarget(target: Target, force: boolean = false) {
+    if (
+      force ||
+      confirm(`Are you sure you want to delete target "${target.name}"?`)
+    ) {
+      this.plugin.settings.targets.remove(target);
+      this.editingStates.delete(target.id);
       this.renderContent();
-    };
-    const deleteButton = headerEl.createEl("button", {
-      cls: "icon-button",
-    });
-    setIcon(deleteButton, "trash");
-    deleteButton.onclick = () => {
-      if (confirm(`Are you sure you want to delete target "${target.name}"?`)) {
-        this.plugin.settings.targets.remove(target);
-        this.renderContent();
-      }
-    };
-
-    const trackingEl = targetEl.createDiv({ cls: "target-tracking" });
-    trackingEl.createEl("p", {
-      text: `${target instanceof WordCountTarget ? "Word count" : "Time"} in ${target.path || "entire vault"}:`,
-    });
-
-    const progressEl = targetEl.createDiv({ cls: "target-progress" });
-    const totalProgress = Object.values(target.getProgress()).reduce(
-      (acc, val) => acc + val,
-      0,
-    );
-    const progressBar = new ProgressBarComponent(progressEl);
-    progressBar.setValue(Math.min((totalProgress / target.target) * 100, 100));
-    const footerEl = targetEl.createEl("div", { cls: "target-footer" });
-    if (target instanceof WordCountTarget) {
-      footerEl.createDiv({
-        text: `${totalProgress} / ${target.target} words`,
-      });
-    } else if (target instanceof TimeTarget) {
-      footerEl.createDiv({
-        text: `${msToStr(totalProgress)} / ${msToStr(target.target)}`,
-      });
-    }
-    if (target.period !== "none") {
-      footerEl.createDiv({ text: `Repeats ${target.period}` });
     }
   }
 
-  // Render the target in editing mode
-  private renderEditingTarget(container: HTMLElement, target: Target) {
-    const targetEl = container.createDiv({ cls: "target-item editing" });
-    const editingState = this.editingStates.get(target.id);
-    if (!editingState) return;
+  private saveTarget(target: Target, editingState: EditingState) {
+    // check for valid name
+    if (editingState.name.trim() === "") {
+      alert("Target name cannot be empty.");
+      return;
+    }
 
-    // Name input field
-    const nameInput = targetEl.createEl("input", {
-      type: "text",
-      placeholder: "Target Name",
-      value: editingState.name,
-    });
-    nameInput.oninput = (e) => {
-      editingState.name = (e.target as HTMLInputElement).value;
-    };
+    // check for valid target
+    if (isNaN(editingState.target) || editingState.target <= 0) {
+      alert(
+        `${
+          target instanceof WordCountTarget ? "Word count" : "Time"
+        } target must be a positive number.`,
+      );
+      return;
+    }
 
-    // Path input field
-    const pathInput = targetEl.createEl("input", {
-      type: "text",
-      placeholder: "File or Folder Path (leave empty for entire vault)",
-      value: editingState.path,
-    });
-    pathInput.oninput = (e) => {
-      editingState.path = (e.target as HTMLInputElement).value;
-    };
-
-    // Period select field
-    const periodSelect = targetEl.createEl("select");
-    const periods = ["none", "daily", "weekly"];
-    for (const period of periods) {
-      const option = periodSelect.createEl("option", {
-        text: period.charAt(0).toUpperCase() + period.slice(1),
-        value: period,
-      });
-      if (editingState.period === period) {
-        option.selected = true;
+    // check for valid path
+    const isPathValid =
+      editingState.path.trim() === "" ||
+      this.plugin.app.vault.getAbstractFileByPath(editingState.path) !== null;
+    if (!isPathValid) {
+      alert("The specified path does not exist in the vault.");
+      return;
+    }
+    target.name = editingState.name;
+    if (target.path !== editingState.path) {
+      if (
+        editingState.new ||
+        confirm("Changing the path will reset progress. Continue?")
+      ) {
+        target.path = editingState.path;
+        this.plugin.targetManager.setupProgressForTarget(target);
+      } else {
+        return;
       }
     }
-    periodSelect.onchange = (e) => {
-      editingState.period = (e.target as HTMLSelectElement).value as
-        | "none"
-        | "daily"
-        | "weekly";
-    };
 
-    // Target amount input
-    const targetInputContainer = targetEl.createDiv({
-      cls: "target-input-container",
-    });
-    const targetInputEl = targetInputContainer.createEl("input", {
-      type: "number",
-      placeholder:
-        target instanceof WordCountTarget ? "Target Word Count" : "Target Time",
-      value:
-        target instanceof WordCountTarget
-          ? editingState.target.toString()
-          : (
-              editingState.target / (target as TimeTarget).multiplier
-            ).toString(),
-    });
-    let targetDurationSelect: HTMLSelectElement | null = null;
+    // save changes to target
+    target.path = editingState.path;
+    target.period = editingState.period;
+    target.target = editingState.target;
     if (target instanceof TimeTarget) {
-      targetDurationSelect = targetInputContainer.createEl("select");
-      const timeOptions = [
-        { label: "Seconds", value: 1000 },
-        { label: "Minutes", value: 60000 },
-        { label: "Hours", value: 3600000 },
-      ];
-      for (const optionData of timeOptions) {
-        const option = targetDurationSelect.createEl("option", {
-          text: optionData.label,
-          value: optionData.value.toString(),
+      target.multiplier = editingState.multiplier;
+    }
+
+    this.editingStates.delete(target.id);
+
+    this.renderContent();
+    this.plugin.forceSave();
+  }
+
+  private cancelSave(target: Target, editingState: EditingState) {
+    if (editingState.new) {
+      this.deleteTarget(target, true);
+    } else {
+      this.editingStates.delete(target.id);
+      this.renderContent();
+    }
+  }
+
+  private editTarget(target: Target) {
+    this.editingStates.set(target.id, {
+      name: target.name,
+      path: target.path,
+      period: target.period,
+      target: target.target,
+      multiplier: target instanceof TimeTarget ? target.multiplier : 1,
+      new: false,
+    } as EditingState);
+    this.renderContent();
+  }
+
+  private buildHeader(
+    container: HTMLElement,
+    target: Target,
+    editingState: EditingState | undefined,
+  ) {
+    const titleEl = container.createDiv({ cls: "target-title" });
+    if (editingState) {
+      const nameInput = titleEl.createEl("input", {
+        type: "text",
+        placeholder: "Target Name",
+        value: editingState.name,
+      });
+      nameInput.oninput = (e) => {
+        editingState.name = (e.target as HTMLInputElement).value;
+      };
+
+      const periodSelect = container.createEl("select", {
+        cls: "period-select",
+      });
+      const periods = ["none", "daily", "weekly"];
+      for (const period of periods) {
+        const option = periodSelect.createEl("option", {
+          text: period.charAt(0).toUpperCase() + period.slice(1),
+          value: period,
         });
-        if (editingState.multiplier === optionData.value) {
+        if (editingState.period === period) {
           option.selected = true;
         }
       }
-      targetDurationSelect.onchange = (e) => {
-        const multiplier = parseInt((e.target as HTMLSelectElement).value);
-        editingState.multiplier = multiplier;
-        editingState.target = parseInt(targetInputEl.value) * multiplier;
+      periodSelect.onchange = (e) => {
+        editingState.period = (e.target as HTMLSelectElement).value as
+          | "none"
+          | "daily"
+          | "weekly";
       };
+      const saveButton = new ButtonComponent(container);
+      saveButton.setIcon("save");
+      saveButton.onClick(() => {
+        this.saveTarget(target, editingState);
+      });
+      saveButton.setTooltip("Save changes");
+      const cancelButton = new ButtonComponent(container);
+      cancelButton.setIcon("cross");
+      cancelButton.onClick(() => {
+        this.cancelSave(target, editingState);
+      });
+      cancelButton.setTooltip("Discard changes");
+    } else {
+      titleEl.createEl("h2", { text: target.name });
+      if (target.period !== "none") {
+        titleEl.createEl("span", {
+          text: `${target.period}`,
+          cls: "target-period",
+        });
+      }
+      const editButton = new ButtonComponent(container);
+      editButton.setIcon("pencil");
+      editButton.onClick(() => this.editTarget(target));
+      editButton.setTooltip(`Edit ${target.name}`);
+      const deleteButton = new ButtonComponent(container);
+      deleteButton.setIcon("trash");
+      deleteButton.onClick(() => this.deleteTarget(target));
+      deleteButton.setTooltip(`Delete ${target.name}`);
     }
-    targetInputEl.oninput = (e) => {
-      editingState.target =
-        parseInt((e.target as HTMLInputElement).value) *
-        (editingState.multiplier || 1);
-    };
-    const buttonContainer = targetEl.createDiv({});
-    const saveButton = buttonContainer.createEl("button", { text: "Save" });
-    saveButton.onclick = () => {
-      if (editingState.name.trim() === "") {
-        alert("Target name cannot be empty.");
-        return;
-      }
-      if (isNaN(editingState.target) || editingState.target <= 0) {
-        alert(
-          `${
-            target instanceof WordCountTarget ? "Word count" : "Time"
-          } target must be a positive number.`,
-        );
-        return;
-      }
-      const isPathValid =
-        editingState.path.trim() === "" ||
-        this.plugin.app.vault.getAbstractFileByPath(editingState.path) !== null;
-      if (!isPathValid) {
-        alert("The specified path does not exist in the vault.");
-        return;
-      }
-      target.name = editingState.name;
-      if (target.path !== editingState.path) {
-        if (
-          editingState.new ||
-          confirm("Changing the path will reset progress. Continue?")
-        ) {
-          target.path = editingState.path;
-          this.plugin.targetManager.setupProgressForTarget(target);
-        } else {
-          return;
-        }
-      }
-      target.path = editingState.path;
-      target.period = editingState.period;
-      target.target = editingState.target;
+  }
+
+  private buildFooter(
+    container: HTMLElement,
+    target: Target,
+    editingState: EditingState | undefined,
+  ) {
+    if (editingState) {
+      const targetInputContainer = container.createDiv({
+        cls: "target-input-container",
+      });
+      const targetInputEl = targetInputContainer.createEl("input", {
+        type: "number",
+        placeholder:
+          target instanceof WordCountTarget
+            ? "Target Word Count"
+            : "Target Time",
+        value:
+          target instanceof WordCountTarget
+            ? editingState.target.toString()
+            : (
+                editingState.target / (target as TimeTarget).multiplier
+              ).toString(),
+      });
+      let targetDurationSelect: HTMLSelectElement | null = null;
       if (target instanceof TimeTarget) {
-        target.multiplier = editingState.multiplier;
+        targetDurationSelect = targetInputContainer.createEl("select");
+        const timeOptions = [
+          { label: "Seconds", value: 1000 },
+          { label: "Minutes", value: 60000 },
+          { label: "Hours", value: 3600000 },
+        ];
+        for (const optionData of timeOptions) {
+          const option = targetDurationSelect.createEl("option", {
+            text: optionData.label,
+            value: optionData.value.toString(),
+          });
+          if (editingState.multiplier === optionData.value) {
+            option.selected = true;
+          }
+        }
+        targetDurationSelect.onchange = (e) => {
+          const multiplier = parseInt((e.target as HTMLSelectElement).value);
+          editingState.multiplier = multiplier;
+          editingState.target = parseInt(targetInputEl.value) * multiplier;
+        };
       }
-      this.editingStates.delete(target.id);
-      this.renderContent();
-      this.plugin.forceSave();
-    };
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
+      targetInputEl.oninput = (e) => {
+        editingState.target =
+          parseInt((e.target as HTMLInputElement).value) *
+          (editingState.multiplier || 1);
+      };
+    } else {
+      const progressEl = container.createDiv({ cls: "target-progress" });
+      const totalProgress = Object.values(target.getProgress()).reduce(
+        (acc, val) => acc + val,
+        0,
+      );
+      const progressBar = new ProgressBarComponent(progressEl);
+      progressBar.setValue(
+        Math.min((totalProgress / target.target) * 100, 100),
+      );
+      const progressLabelEl = progressEl.createEl("div", {
+        cls: "target-footer",
+      });
+      if (target instanceof WordCountTarget) {
+        progressLabelEl.createDiv({
+          text: `${totalProgress} / ${target.target} words`,
+        });
+      } else if (target instanceof TimeTarget) {
+        progressLabelEl.createDiv({
+          text: `${msToStr(totalProgress)} / ${msToStr(target.target)}`,
+        });
+      }
+    }
+  }
+
+  private buildTarget(container: HTMLElement, target: Target) {
+    const editingState = this.editingStates.get(target.id);
+
+    const targetEl = container.createDiv({
+      cls: `target-container ${editingState ? "editing" : ""}`,
     });
-    cancelButton.onclick = () => {
-      if (editingState.new) {
-        this.plugin.settings.targets.remove(target);
-      }
-      this.editingStates.delete(target.id);
-      this.renderContent();
-    };
+
+    const headerEl = targetEl.createDiv({ cls: "target-header" });
+    this.buildHeader(headerEl, target, editingState);
+
+    if (editingState) {
+      const pathInput = targetEl.createEl("input", {
+        cls: "path-input",
+        type: "text",
+        placeholder: "File or Folder Path (leave empty for entire vault)",
+        value: editingState.path,
+      });
+      pathInput.oninput = (e) => {
+        editingState.path = (e.target as HTMLInputElement).value;
+      };
+    } else {
+      const trackingEl = targetEl.createDiv({ cls: "target-tracking" });
+      trackingEl.createEl("p", {
+        text: `Tracking: ${target.path || "entire vault"}`,
+      });
+    }
+
+    this.buildFooter(targetEl, target, editingState);
+  }
+
+  private buildButton(
+    container: HTMLElement,
+    value: string,
+    onClick: () => void,
+    type: "icon" | "text",
+  ) {
+    const button = container.createEl("button", {
+      cls: type === "icon" ? "icon-button" : "text-button",
+    });
+    if (type === "icon") {
+      setIcon(button, value);
+    } else {
+      button.setText(value);
+    }
+    button.onclick = onClick;
+    return button;
   }
 
   renderContent() {
@@ -270,40 +345,26 @@ export class TargetView extends ItemView {
     // Targets List
     const targets = container.createDiv({ cls: "targets-container" });
     for (const target of this.plugin.settings.targets) {
-      this.renderTarget(targets, target);
+      this.buildTarget(targets, target);
     }
 
     // New Target Buttons
     const buttonsEl = container.createDiv({ cls: "target-view-buttons" });
-    const addWordCountButton = buttonsEl.createDiv().createEl("button", {
-      text: "New Word Count Target",
-    });
-    addWordCountButton.onclick = () => {
-      const target = this.plugin.targetManager.newTarget("wordCount");
-      this.editingStates.set(target.id, {
-        name: target.name,
-        path: target.path,
-        period: target.period,
-        target: target.target,
-        multiplier: 1,
-        new: true,
-      } as EditingState);
-      this.renderContent();
-    };
-    const addTimeButton = buttonsEl.createDiv().createEl("button", {
-      text: "New Time Target",
-    });
-    addTimeButton.onclick = () => {
-      const target = this.plugin.targetManager.newTarget("time") as TimeTarget;
-      this.editingStates.set(target.id, {
-        name: target.name,
-        path: target.path,
-        period: target.period,
-        target: target.target,
-        multiplier: target.multiplier,
-        new: true,
-      } as EditingState);
-      this.renderContent();
-    };
+    this.buildButton(
+      buttonsEl,
+      "New Word Count Target",
+      () => {
+        this.newTarget("wordCount");
+      },
+      "text",
+    );
+    this.buildButton(
+      buttonsEl,
+      "New Time Target",
+      () => {
+        this.newTarget("time");
+      },
+      "text",
+    );
   }
 }
