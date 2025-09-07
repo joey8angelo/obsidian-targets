@@ -4,7 +4,6 @@ import {
   PluginSettingTab,
   Setting,
   WorkspaceLeaf,
-  setIcon,
 } from "obsidian";
 import { TargetView, VIEW_TYPE_TARGET } from "./targetView";
 import { Target, WordCountTarget, TimeTarget } from "./target";

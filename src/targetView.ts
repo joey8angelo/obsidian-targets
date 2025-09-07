@@ -316,24 +316,6 @@ export class TargetView extends ItemView {
     this.buildFooter(targetEl, target, editingState);
   }
 
-  private buildButton(
-    container: HTMLElement,
-    value: string,
-    onClick: () => void,
-    type: "icon" | "text",
-  ) {
-    const button = container.createEl("button", {
-      cls: type === "icon" ? "icon-button" : "text-button",
-    });
-    if (type === "icon") {
-      setIcon(button, value);
-    } else {
-      button.setText(value);
-    }
-    button.onclick = onClick;
-    return button;
-  }
-
   renderContent() {
     const container = this.contentEl;
     container.empty();
@@ -350,21 +332,15 @@ export class TargetView extends ItemView {
 
     // New Target Buttons
     const buttonsEl = container.createDiv({ cls: "target-view-buttons" });
-    this.buildButton(
-      buttonsEl,
-      "New Word Count Target",
-      () => {
-        this.newTarget("wordCount");
-      },
-      "text",
-    );
-    this.buildButton(
-      buttonsEl,
-      "New Time Target",
-      () => {
-        this.newTarget("time");
-      },
-      "text",
-    );
+    const wordCountButton = new ButtonComponent(buttonsEl);
+    wordCountButton.setButtonText("New Word Count Target");
+    wordCountButton.onClick(() => {
+      this.newTarget("wordCount");
+    });
+    const timeButton = new ButtonComponent(buttonsEl);
+    timeButton.setButtonText("New Time Target");
+    timeButton.onClick(() => {
+      this.newTarget("time");
+    });
   }
 }
