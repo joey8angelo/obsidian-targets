@@ -1,5 +1,7 @@
 .view-content {
   min-width: fit-content;
+  max-width: 100%;
+  height: 100%;
 }
 
 .target-view-header h1 {
@@ -18,7 +20,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 10px;
+  margin: 10px;
+  height: 100%;
+  overflow-y: scroll;
 }
 
 .target-container {
@@ -48,7 +52,7 @@
   width: 100%;
 }
 
-.target-title h2 {
+.target-title h3 {
   margin: 0;
 }
 
@@ -97,4 +101,40 @@
 
 .path-input {
   margin: 5px 0;
+}
+
+.target-view-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.habit-grid-container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.habit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.habit-cell {
+  width: 10px;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background-color: var(--background-primary-alt);
+}
+.habit-cell-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+}
+.habit-cell-inner.past {
+  background-color: var(--interactive-accent);
 }

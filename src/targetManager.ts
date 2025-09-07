@@ -76,10 +76,12 @@ export default class TargetManager {
 
   archiveTarget(target: Target, date: Date) {
     if (target.period === "none") return;
+    const totalProgress = target.getTotalProgress();
+    if (totalProgress === 0) return;
 
     const newDate = new Date(date);
     newDate.setHours(0, 0, 0, 0);
-    const datestr = newDate.toISOString();
+    const datestr = newDate.toISOString().split("T")[0];
     if (!(datestr in this.plugin.settings.progressHistory[target.period])) {
       this.plugin.settings.progressHistory[target.period][datestr] = {
         wordCount: { target: 0, progress: 0 },
@@ -91,7 +93,8 @@ export default class TargetManager {
     ].target += target.target;
     this.plugin.settings.progressHistory[target.period][datestr][
       target.type
-    ].progress += target.getTotalProgress();
+    ].progress += totalProgress;
+
     this.plugin.scheduleSave();
   }
 
@@ -229,5 +232,22 @@ export default class TargetManager {
       this.plugin.scheduleSave();
     }
     this.plugin.renderTargetView();
+  }
+
+  getYearProgress(year: number, type: "wordCount" | "time" = "wordCount") {
+    let date = new Date(year, 0, 1);
+    let results = [];
+    while (date.getFullYear() === year) {
+      const datestr = date.toISOString().split("T")[0];
+      const res = this.plugin.settings.progressHistory["daily"][datestr];
+      const progress = res
+        ? res[type].target !== 0
+          ? res[type].progress / res[type].target
+          : 0
+        : 0;
+      results.push({ date: new Date(date), progress: progress });
+      date.setDate(date.getDate() + 1);
+    }
+    return results;
   }
 }

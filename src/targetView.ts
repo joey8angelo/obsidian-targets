@@ -3,7 +3,7 @@ import {
   WorkspaceLeaf,
   ProgressBarComponent,
   ButtonComponent,
-  setIcon,
+  setTooltip,
 } from "obsidian";
 import TargetTracker from "./main";
 import { msToStr } from "./utils";
@@ -99,15 +99,14 @@ export class TargetView extends ItemView {
     }
     target.name = editingState.name;
     if (target.path !== editingState.path) {
-      if (
-        editingState.new ||
-        confirm("Changing the path will reset progress. Continue?")
-      ) {
+      if (confirm("Changing the path will reset progress. Continue?")) {
         target.path = editingState.path;
         this.plugin.targetManager.setupProgressForTarget(target);
       } else {
         return;
       }
+    } else if (editingState.new) {
+      this.plugin.targetManager.setupProgressForTarget(target);
     }
 
     // save changes to target
@@ -193,7 +192,7 @@ export class TargetView extends ItemView {
       });
       cancelButton.setTooltip("Discard changes");
     } else {
-      titleEl.createEl("h2", { text: target.name });
+      titleEl.createEl("h3", { text: target.name });
       if (target.period !== "none") {
         titleEl.createEl("span", {
           text: `${target.period}`,
@@ -316,22 +315,45 @@ export class TargetView extends ItemView {
     this.buildFooter(targetEl, target, editingState);
   }
 
+  buildHabitGrid(container: HTMLElement) {
+    const gridEl = container.createDiv({ cls: "habit-grid" });
+    const cellData = this.plugin.targetManager.getYearProgress(
+      new Date().getFullYear(),
+    );
+
+    for (const cell of cellData) {
+      const cellEl = gridEl.createDiv({ cls: "habit-cell" });
+      const cellInnerEl = cellEl.createDiv({ cls: "habit-cell-inner" });
+      if (cell.date < new Date()) {
+        cellInnerEl.addClass("past");
+        cellInnerEl.style.opacity = cell.progress.toString();
+        setTooltip(
+          cellEl,
+          `${cell.date.toDateString()}\nProgress: ${Math.round(cell.progress * 100)}%`,
+        );
+      } else {
+        setTooltip(cellEl, `${cell.date.toDateString()}`);
+      }
+    }
+  }
+
   renderContent() {
     const container = this.contentEl;
     container.empty();
 
-    // Header
-    const header = container.createDiv({ cls: "target-view-header" });
+    const content = container.createDiv({ cls: "target-view-content" });
+
+    const header = content.createDiv({ cls: "target-view-header" });
     header.createEl("h1", { text: "My Targets" });
 
     // Targets List
-    const targets = container.createDiv({ cls: "targets-container" });
+    const targets = content.createDiv({ cls: "targets-container" });
     for (const target of this.plugin.settings.targets) {
       this.buildTarget(targets, target);
     }
 
     // New Target Buttons
-    const buttonsEl = container.createDiv({ cls: "target-view-buttons" });
+    const buttonsEl = targets.createDiv({ cls: "target-view-buttons" });
     const wordCountButton = new ButtonComponent(buttonsEl);
     wordCountButton.setButtonText("New Word Count Target");
     wordCountButton.onClick(() => {
@@ -342,5 +364,9 @@ export class TargetView extends ItemView {
     timeButton.onClick(() => {
       this.newTarget("time");
     });
+
+    // Habit tracker
+    const habitGrid = content.createDiv({ cls: "habit-grid-container" });
+    this.buildHabitGrid(habitGrid);
   }
 }
