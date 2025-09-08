@@ -262,10 +262,10 @@ export class TargetView extends ItemView {
       };
     } else {
       const progressEl = container.createDiv({ cls: "target-progress" });
-      const totalProgress = Object.values(target.getProgress()).reduce(
-        (acc, val) => acc + val,
-        0,
-      );
+      let totalProgress = target.getTotalProgress();
+      if (!this.plugin.settings.showNegativeProgress) {
+        totalProgress = Math.max(0, totalProgress);
+      }
       const progressBar = new ProgressBarComponent(progressEl);
       progressBar.setValue(
         Math.min((totalProgress / target.target) * 100, 100),
@@ -325,11 +325,14 @@ export class TargetView extends ItemView {
       const cellEl = gridEl.createDiv({ cls: "habit-cell" });
       const cellInnerEl = cellEl.createDiv({ cls: "habit-cell-inner" });
       if (cell.date < new Date()) {
+        const progress = this.plugin.settings.showNegativeProgress
+          ? cell.progress
+          : Math.max(0, cell.progress);
         cellInnerEl.addClass("past");
-        cellInnerEl.style.opacity = cell.progress.toString();
+        cellInnerEl.style.opacity = progress.toString();
         setTooltip(
           cellEl,
-          `${cell.date.toDateString()}\nProgress: ${Math.round(cell.progress * 100)}%`,
+          `${cell.date.toDateString()}\nProgress: ${Math.round(progress * 100)}%`,
         );
       } else {
         setTooltip(cellEl, `${cell.date.toDateString()}`);

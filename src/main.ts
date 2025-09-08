@@ -44,6 +44,7 @@ export interface Settings {
       };
     };
   };
+  showNegativeProgress: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -57,6 +58,7 @@ const DEFAULT_SETTINGS: Settings = {
     daily: {},
     weekly: {},
   },
+  showNegativeProgress: false,
 };
 
 export default class TargetTracker extends Plugin {
@@ -261,6 +263,19 @@ export class SettingsTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.useCommentsInWordCount);
         toggle.onChange(async (value) => {
           this.plugin.settings.useCommentsInWordCount = value;
+          this.plugin.forceSave();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Show Negative Progress")
+      .setDesc(
+        "When a periodic target resets, and your progress decreases from the previous period, show the negative progress rather than 0 progress. Does not change how progress is calculated, simply how it is displayed.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.showNegativeProgress);
+        toggle.onChange(async (value) => {
+          this.plugin.settings.showNegativeProgress = value;
           this.plugin.forceSave();
         });
       });
