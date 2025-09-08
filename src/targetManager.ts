@@ -220,17 +220,21 @@ export default class TargetManager {
   async setupProgressForTarget(target: Target) {
     const files = getFilesFromFolderPath(this.vault, target.path);
     target.resetProgress(files);
-    for (const file of files) {
-      const progress =
-        target instanceof TimeTarget
-          ? 0
-          : getWordCount(
-              await this.vault.cachedRead(file),
-              this.plugin.settings.useCommentsInWordCount,
-            );
-      target.updateProgress(file, progress);
-      this.plugin.scheduleSave();
+    // setup the previous progress for word count targets
+    if (target instanceof WordCountTarget) {
+      for (const file of files) {
+        const progress = getWordCount(
+          await this.vault.cachedRead(file),
+          this.plugin.settings.useCommentsInWordCount,
+        );
+        target.updateProgress(file, progress);
+      }
+      // set diff on periodic targets
+      if (target.period !== "none") {
+        target.previousProgress = { ...target.progress };
+      }
     }
+    this.plugin.scheduleSave();
     this.plugin.renderTargetView();
   }
 

@@ -98,15 +98,15 @@ export class TargetView extends ItemView {
       return;
     }
     target.name = editingState.name;
-    if (target.path !== editingState.path) {
+    if (editingState.new) {
+      this.plugin.targetManager.setupProgressForTarget(target);
+    } else if (target.path !== editingState.path) {
       if (confirm("Changing the path will reset progress. Continue?")) {
         target.path = editingState.path;
         this.plugin.targetManager.setupProgressForTarget(target);
       } else {
         return;
       }
-    } else if (editingState.new) {
-      this.plugin.targetManager.setupProgressForTarget(target);
     }
 
     // save changes to target
