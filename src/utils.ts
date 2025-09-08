@@ -15,7 +15,12 @@ export function removeComments(text: string): string {
     );
 }
 
+export function removeYAMLFrontMatter(text: string): string {
+  return text.replace(new RegExp("^---\s*((\n|.)*)---", "g"), "");
+}
+
 export function getWordCount(text: string, useComments: boolean): number {
+  text = removeYAMLFrontMatter(text);
   if (!useComments) {
     text = removeComments(text);
   }
