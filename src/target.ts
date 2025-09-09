@@ -142,7 +142,8 @@ export class WordCountTarget extends Target {
 }
 
 export class TimeTarget extends Target {
-  multiplier = 1000;
+  multiplier: number;
+
   type: "time" = "time";
   constructor(
     id: string,
@@ -152,8 +153,10 @@ export class TimeTarget extends Target {
     target: number,
     progress: FilesProgress,
     path: string,
+    multiplier = 1000,
   ) {
     super(id, name, period, scope, target, progress, path);
+    this.multiplier = multiplier;
   }
 
   getNextTarget() {

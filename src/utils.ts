@@ -46,22 +46,24 @@ export function getWordCount(text: string, useComments: boolean): number {
 }
 
 export function msToStr(ms: number) {
-  function numberEnding(number: number) {
-    return number > 1 ? "s" : "";
+  function numberEnding(n: number) {
+    return n > 1 ? "s" : "";
   }
-  let temp = Math.floor(ms / 1000);
-  const hours = Math.floor((temp %= 86400) / 3600);
-  if (hours) {
-    return hours + " hour" + numberEnding(hours);
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+
+  if (days > 0) {
+    return `${days} day${numberEnding(days)}`;
+  } else if (hours > 0) {
+    return `${hours} hour${numberEnding(hours)}`;
+  } else if (minutes > 0) {
+    return `${minutes} minute${numberEnding(minutes)}`;
+  } else if (seconds > 0) {
+    return `${seconds} second${numberEnding(seconds)}`;
   }
-  const minutes = Math.floor((temp %= 3600) / 60);
-  if (minutes) {
-    return minutes + " minute" + numberEnding(minutes);
-  }
-  const seconds = temp % 60;
-  if (seconds) {
-    return seconds + " second" + numberEnding(seconds);
-  }
+
   return "less than a second";
 }
 

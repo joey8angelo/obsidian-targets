@@ -101,6 +101,12 @@ export default class TargetManager {
   async handleModify(file: TAbstractFile) {
     if (!(file instanceof TFile)) return;
     const textPromise = this.vault.cachedRead(file);
+    const now = Date.now();
+    const elapsed = Math.min(
+      this.plugin.settings.maxIdleTime,
+      now - this.activeFileTimestamp,
+    );
+    this.activeFileTimestamp = now;
     for (const target of this.plugin.settings.targets) {
       if (target instanceof WordCountTarget) {
         target.updateProgress(
@@ -111,13 +117,7 @@ export default class TargetManager {
           ),
         );
       } else if (target instanceof TimeTarget) {
-        const now = Date.now();
-        const elapsed = Math.min(
-          this.plugin.settings.maxIdleTime,
-          now - this.activeFileTimestamp,
-        );
         target.updateProgress(file, elapsed);
-        this.activeFileTimestamp = Date.now();
       }
       this.plugin.scheduleSave();
     }
@@ -244,7 +244,6 @@ export default class TargetManager {
     type: "wordCount" | "time",
   ) {
     let date = new Date(year, 11, 31);
-    console.log(date);
     let results = [];
     let prevProgress = 0;
     let prevDate = new Date(date);
@@ -255,7 +254,6 @@ export default class TargetManager {
       if (!res && period === "weekly") {
         results.push({ date: new Date(date), progress: prevProgress });
         date.setDate(date.getDate() - 1);
-        console.log(prevDate, date);
         if (
           (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24) >=
           7
@@ -275,7 +273,6 @@ export default class TargetManager {
       date.setDate(date.getDate() - 1);
     }
     results = results.reverse();
-    console.log(results);
     return results;
   }
 }

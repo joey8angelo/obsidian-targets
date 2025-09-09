@@ -180,6 +180,7 @@ export default class TargetTracker extends Plugin {
           target.target,
           target.progress,
           target.path,
+          (target as TimeTarget).multiplier,
         );
       }
     }
