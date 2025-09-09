@@ -238,20 +238,44 @@ export default class TargetManager {
     this.plugin.renderTargetView();
   }
 
-  getYearProgress(year: number, type: "wordCount" | "time" = "wordCount") {
-    let date = new Date(year, 0, 1);
+  getYearProgress(
+    year: number,
+    period: "daily" | "weekly",
+    type: "wordCount" | "time",
+  ) {
+    let date = new Date(year, 11, 31);
+    console.log(date);
     let results = [];
+    let prevProgress = 0;
+    let prevDate = new Date(date);
     while (date.getFullYear() === year) {
       const datestr = date.toISOString().split("T")[0];
-      const res = this.plugin.settings.progressHistory["daily"][datestr];
+      const res = this.plugin.settings.progressHistory[period][datestr];
+      // fill in gaps between week progress entries
+      if (!res && period === "weekly") {
+        results.push({ date: new Date(date), progress: prevProgress });
+        date.setDate(date.getDate() - 1);
+        console.log(prevDate, date);
+        if (
+          (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24) >=
+          7
+        ) {
+          prevProgress = 0;
+        }
+        continue;
+      }
       const progress = res
         ? res[type].target !== 0
           ? res[type].progress / res[type].target
           : 0
         : 0;
       results.push({ date: new Date(date), progress: progress });
-      date.setDate(date.getDate() + 1);
+      prevProgress = progress;
+      prevDate = new Date(date);
+      date.setDate(date.getDate() - 1);
     }
+    results = results.reverse();
+    console.log(results);
     return results;
   }
 }

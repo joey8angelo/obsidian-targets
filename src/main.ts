@@ -45,6 +45,7 @@ export interface Settings {
     };
   };
   showNegativeProgress: boolean;
+  showProgressHistory: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -59,6 +60,7 @@ const DEFAULT_SETTINGS: Settings = {
     weekly: {},
   },
   showNegativeProgress: false,
+  showProgressHistory: true,
 };
 
 export default class TargetTracker extends Plugin {
@@ -277,6 +279,20 @@ export class SettingsTab extends PluginSettingTab {
         toggle.onChange(async (value) => {
           this.plugin.settings.showNegativeProgress = value;
           this.plugin.forceSave();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Show Progress History")
+      .setDesc(
+        "Show the progress graph in the target view. Shows the periodic targets' progress over the current year.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.showProgressHistory);
+        toggle.onChange(async (value) => {
+          this.plugin.settings.showProgressHistory = value;
+          this.plugin.forceSave();
+          this.plugin.renderTargetView();
         });
       });
   }

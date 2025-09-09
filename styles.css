@@ -8,7 +8,7 @@
   margin: 0;
 }
 
-.target-view-buttons {
+.target-view-new-buttons {
   display: flex;
   flex-direction: row;
   justify-content: space-around;
@@ -20,7 +20,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin: 10px;
   height: 100%;
   overflow-y: scroll;
 }
@@ -52,8 +51,15 @@
   width: 100%;
 }
 
-.target-title h3 {
+h3 {
   margin: 0;
+}
+h4 {
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
 }
 
 .target-period {
@@ -107,6 +113,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: 10px;
 }
 
 .habit-grid-container {
@@ -137,4 +144,34 @@
 }
 .habit-cell-inner.past {
   background-color: var(--interactive-accent);
+}
+.habit-selectors {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  margin-top: 5px;
+  justify-content: space-around;
+}
+.habit-grid-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.habit-year-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+}
+.habit-year-button {
+  cursor: pointer;
+}
+.habit-year-button.disabled {
+  opacity: 0.5;
+  cursor: auto;
+}
+.habit-year-button svg {
+  width: 24px;
+  height: 24px;
 }

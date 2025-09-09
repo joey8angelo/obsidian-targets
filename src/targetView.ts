@@ -4,6 +4,7 @@ import {
   ProgressBarComponent,
   ButtonComponent,
   setTooltip,
+  setIcon,
 } from "obsidian";
 import TargetTracker from "./main";
 import { msToStr } from "./utils";
@@ -23,6 +24,9 @@ interface EditingState {
 export class TargetView extends ItemView {
   private plugin: TargetTracker;
   private editingStates: Map<string, EditingState> = new Map();
+  private selectedPeriod: "daily" | "weekly" = "daily";
+  private selectedType: "wordCount" | "time" = "wordCount";
+  private selectedYear: number = new Date().getFullYear();
 
   constructor(leaf: WorkspaceLeaf, plugin: TargetTracker) {
     super(leaf);
@@ -192,7 +196,7 @@ export class TargetView extends ItemView {
       });
       cancelButton.setTooltip("Discard changes");
     } else {
-      titleEl.createEl("h3", { text: target.name });
+      titleEl.createEl("h4", { text: target.name });
       if (target.period !== "none") {
         titleEl.createEl("span", {
           text: `${target.period}`,
@@ -316,9 +320,43 @@ export class TargetView extends ItemView {
   }
 
   buildHabitGrid(container: HTMLElement) {
+    const headerEl = container.createDiv({ cls: "habit-grid-header" });
+    headerEl.createEl("h3", { text: `${this.selectedYear} Progress` });
+    const yearButtonsEl = headerEl.createDiv({ cls: "habit-year-buttons" });
+
+    const prevYearButton = yearButtonsEl.createDiv({
+      cls: "habit-year-button",
+    });
+    setIcon(prevYearButton, "chevron-left");
+    prevYearButton.onclick = () => {
+      this.selectedYear--;
+      this.renderContent();
+    };
+    setTooltip(prevYearButton, "Previous Year");
+
+    const nextYearButton = yearButtonsEl.createDiv({
+      cls: `habit-year-button ${
+        this.selectedYear < new Date().getFullYear() ? "" : "disabled"
+      }`,
+    });
+    setIcon(nextYearButton, "chevron-right");
+    nextYearButton.onclick = () => {
+      if (this.selectedYear < new Date().getFullYear()) {
+        this.selectedYear++;
+        this.renderContent();
+      }
+    };
+    if (this.selectedYear < new Date().getFullYear()) {
+      setTooltip(nextYearButton, "Next Year");
+    } else {
+      setTooltip(nextYearButton, "Next Year (not available)");
+    }
+
     const gridEl = container.createDiv({ cls: "habit-grid" });
     const cellData = this.plugin.targetManager.getYearProgress(
-      new Date().getFullYear(),
+      this.selectedYear,
+      this.selectedPeriod,
+      this.selectedType,
     );
 
     for (const cell of cellData) {
@@ -333,11 +371,54 @@ export class TargetView extends ItemView {
         setTooltip(
           cellEl,
           `${cell.date.toDateString()}\nProgress: ${Math.round(progress * 100)}%`,
+          { placement: "top" },
         );
       } else {
-        setTooltip(cellEl, `${cell.date.toDateString()}`);
+        setTooltip(cellEl, `${cell.date.toDateString()}`, { placement: "top" });
       }
     }
+
+    const selectorsEl = container.createDiv({ cls: "habit-selectors" });
+    const typeSelect = selectorsEl.createEl("select");
+    const types = [
+      { label: "Word Count", value: "wordCount" },
+      { label: "Time", value: "time" },
+    ];
+    for (const type of types) {
+      const option = typeSelect.createEl("option", {
+        text: type.label,
+        value: type.value,
+      });
+      if (this.selectedType === type.value) {
+        option.selected = true;
+      }
+    }
+    typeSelect.onchange = (e) => {
+      this.selectedType = (e.target as HTMLSelectElement).value as
+        | "wordCount"
+        | "time";
+      this.renderContent();
+    };
+    const periodSelect = selectorsEl.createEl("select");
+    const periods = [
+      { label: "Weekly", value: "weekly" },
+      { label: "Daily", value: "daily" },
+    ];
+    for (const period of periods) {
+      const option = periodSelect.createEl("option", {
+        text: period.label,
+        value: period.value,
+      });
+      if (this.selectedPeriod === period.value) {
+        option.selected = true;
+      }
+    }
+    periodSelect.onchange = (e) => {
+      this.selectedPeriod = (e.target as HTMLSelectElement).value as
+        | "daily"
+        | "weekly";
+      this.renderContent();
+    };
   }
 
   renderContent() {
@@ -349,14 +430,8 @@ export class TargetView extends ItemView {
     const header = content.createDiv({ cls: "target-view-header" });
     header.createEl("h1", { text: "My Targets" });
 
-    // Targets List
-    const targets = content.createDiv({ cls: "targets-container" });
-    for (const target of this.plugin.settings.targets) {
-      this.buildTarget(targets, target);
-    }
-
     // New Target Buttons
-    const buttonsEl = targets.createDiv({ cls: "target-view-buttons" });
+    const buttonsEl = content.createDiv({ cls: "target-view-new-buttons" });
     const wordCountButton = new ButtonComponent(buttonsEl);
     wordCountButton.setButtonText("New Word Count Target");
     wordCountButton.onClick(() => {
@@ -368,8 +443,16 @@ export class TargetView extends ItemView {
       this.newTarget("time");
     });
 
-    // Habit tracker
-    const habitGrid = content.createDiv({ cls: "habit-grid-container" });
-    this.buildHabitGrid(habitGrid);
+    // Targets List
+    const targets = content.createDiv({ cls: "targets-container" });
+    for (const target of this.plugin.settings.targets) {
+      this.buildTarget(targets, target);
+    }
+
+    // Habit tracker visualization
+    if (this.plugin.settings.showProgressHistory) {
+      const habitGrid = content.createDiv({ cls: "habit-grid-container" });
+      this.buildHabitGrid(habitGrid);
+    }
   }
 }

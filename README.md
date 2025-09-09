@@ -3,7 +3,9 @@ This plugin allows you to create and manage "targets" in Obsidian, which track y
 
 Targets can track word count or time spent on a file or folder. You can set the target to repeat daily, weekly, or not at all. When a target repeats, it will reset its progress at the start of the new period, which means word count tracks the number of new words added during that period.
 
-![Target View Screenshot](images/target-view.png)
+The progress history graph shows a habit tracker-like view of your periodic targets progress over time.
+
+![Target View Screenshot](images/obsidian-targets.png)
 
 ## Installation
 Getting the code:
@@ -30,3 +32,7 @@ You can configure the plugin's settings by opening the settings panel and naviga
 `Max Idle Time (seconds)`: The maximum amount of time that can pass without editing a file before time tracking is paused. The default is 30 seconds.
 
 `Include Comments in Word Count`: Whether comments should be included in the word count for targets. The default is false.
+
+`Show Negative Progress`: In the target view, show the negative progress towards the target. The default is false and will cap at 0%.
+
+`Show Progress History`: In the target view, show the progress history graph. The default is true.
