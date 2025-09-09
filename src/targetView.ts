@@ -5,6 +5,7 @@ import {
   ButtonComponent,
   setTooltip,
   setIcon,
+  normalizePath,
 } from "obsidian";
 import TargetTracker from "./main";
 import { msToStr } from "./utils";
@@ -94,14 +95,14 @@ export class TargetView extends ItemView {
     }
 
     // check for valid path
+    const normalizedPath = normalizePath(editingState.path);
     const isPathValid =
-      editingState.path.trim() === "" ||
-      this.plugin.app.vault.getAbstractFileByPath(editingState.path) !== null;
+      normalizedPath === "" ||
+      this.plugin.app.vault.getAbstractFileByPath(normalizedPath) !== null;
     if (!isPathValid) {
       alert("The specified path does not exist in the vault.");
       return;
     }
-    target.name = editingState.name;
     if (editingState.new) {
       this.plugin.targetManager.setupProgressForTarget(target);
     } else if (target.path !== editingState.path) {
@@ -114,7 +115,8 @@ export class TargetView extends ItemView {
     }
 
     // save changes to target
-    target.path = editingState.path;
+    target.name = editingState.name;
+    target.path = normalizedPath;
     target.period = editingState.period;
     target.target = editingState.target;
     if (target instanceof TimeTarget) {
@@ -157,7 +159,7 @@ export class TargetView extends ItemView {
     if (editingState) {
       const nameInput = titleEl.createEl("input", {
         type: "text",
-        placeholder: "Target Name",
+        placeholder: "Target name",
         value: editingState.name,
       });
       nameInput.oninput = (e) => {
@@ -303,7 +305,7 @@ export class TargetView extends ItemView {
       const pathInput = targetEl.createEl("input", {
         cls: "path-input",
         type: "text",
-        placeholder: "File or Folder Path (leave empty for entire vault)",
+        placeholder: "Path to file or folder (leave empty for entire vault)",
         value: editingState.path,
       });
       pathInput.oninput = (e) => {
@@ -332,7 +334,7 @@ export class TargetView extends ItemView {
       this.selectedYear--;
       this.renderContent();
     };
-    setTooltip(prevYearButton, "Previous Year");
+    setTooltip(prevYearButton, "Previous year");
 
     const nextYearButton = yearButtonsEl.createDiv({
       cls: `habit-year-button ${
@@ -347,9 +349,9 @@ export class TargetView extends ItemView {
       }
     };
     if (this.selectedYear < new Date().getFullYear()) {
-      setTooltip(nextYearButton, "Next Year");
+      setTooltip(nextYearButton, "Next year");
     } else {
-      setTooltip(nextYearButton, "Next Year (not available)");
+      setTooltip(nextYearButton, "Next year (not available)");
     }
 
     const gridEl = container.createDiv({ cls: "habit-grid" });
@@ -381,7 +383,7 @@ export class TargetView extends ItemView {
     const selectorsEl = container.createDiv({ cls: "habit-selectors" });
     const typeSelect = selectorsEl.createEl("select");
     const types = [
-      { label: "Word Count", value: "wordCount" },
+      { label: "Word count", value: "wordCount" },
       { label: "Time", value: "time" },
     ];
     for (const type of types) {
@@ -428,17 +430,17 @@ export class TargetView extends ItemView {
     const content = container.createDiv({ cls: "target-view-content" });
 
     const header = content.createDiv({ cls: "target-view-header" });
-    header.createEl("h1", { text: "My Targets" });
+    header.createEl("h1", { text: "My targets" });
 
     // New Target Buttons
     const buttonsEl = content.createDiv({ cls: "target-view-new-buttons" });
     const wordCountButton = new ButtonComponent(buttonsEl);
-    wordCountButton.setButtonText("New Word Count Target");
+    wordCountButton.setButtonText("New word count target");
     wordCountButton.onClick(() => {
       this.newTarget("wordCount");
     });
     const timeButton = new ButtonComponent(buttonsEl);
-    timeButton.setButtonText("New Time Target");
+    timeButton.setButtonText("New time target");
     timeButton.onClick(() => {
       this.newTarget("time");
     });
