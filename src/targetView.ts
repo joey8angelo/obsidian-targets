@@ -368,8 +368,8 @@ export class TargetView extends ItemView {
         const progress = this.plugin.settings.showNegativeProgress
           ? cell.progress
           : Math.max(0, cell.progress);
-        cellInnerEl.addClass("past");
-        cellInnerEl.style.opacity = progress.toString();
+        const progressLevel = Math.min(10, Math.floor(progress * 10));
+        cellInnerEl.addClass(`progress${progressLevel}`);
         setTooltip(
           cellEl,
           `${cell.date.toDateString()}\nProgress: ${Math.round(progress * 100)}%`,
@@ -377,6 +377,7 @@ export class TargetView extends ItemView {
         );
       } else {
         setTooltip(cellEl, `${cell.date.toDateString()}`, { placement: "top" });
+        cellInnerEl.addClass("future");
       }
     }
 
