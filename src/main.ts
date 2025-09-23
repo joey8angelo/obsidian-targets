@@ -80,7 +80,7 @@ export default class TargetTracker extends Plugin {
 
   scheduleSave() {
     this.settingsDirty = true;
-    if (this.saveTimeout !== null) clearTimeout(this.saveTimeout);
+    if (this.saveTimeout !== null) window.clearTimeout(this.saveTimeout);
     this.saveTimeout = window.setTimeout(() => {
       if (this.settingsDirty) {
         this.saveSettings();
@@ -92,7 +92,7 @@ export default class TargetTracker extends Plugin {
 
   forceSave() {
     if (this.saveTimeout !== null) {
-      clearTimeout(this.saveTimeout);
+      window.clearTimeout(this.saveTimeout);
       this.saveTimeout = null;
     }
     this.saveSettings();

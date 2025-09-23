@@ -26,7 +26,7 @@ export default class ScheduleManager {
 
   scheduleReset() {
     if (this.dailyResetTimeout !== null) {
-      clearTimeout(this.dailyResetTimeout);
+      window.clearTimeout(this.dailyResetTimeout);
     }
     const nextReset = this.getNextResetTime();
     const msUntilReset = nextReset.getTime() - Date.now();
