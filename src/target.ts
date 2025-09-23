@@ -9,7 +9,6 @@ export abstract class Target {
   id: string;
   name: string;
   period: "daily" | "weekly" | "none";
-  scope: "file" | "folder" | "vault";
   target: number;
   progress: FilesProgress;
   path: string;
@@ -20,7 +19,6 @@ export abstract class Target {
     id: string,
     name: string,
     period: "daily" | "weekly" | "none",
-    scope: "file" | "folder" | "vault",
     target: number,
     progress: FilesProgress,
     path: string,
@@ -28,7 +26,6 @@ export abstract class Target {
     this.id = id;
     this.name = name;
     this.period = period;
-    this.scope = scope;
     this.target = target;
     this.progress = progress;
     this.path = path;
@@ -40,7 +37,7 @@ export abstract class Target {
   }
 
   isTrackingPath(path: string): boolean {
-    if (path.startsWith(this.path)) {
+    if (path.startsWith(this.path) || this.path === "/") {
       return true;
     }
     return false;
@@ -63,13 +60,12 @@ export class WordCountTarget extends Target {
     id: string,
     name: string,
     period: "daily" | "weekly" | "none",
-    scope: "file" | "folder" | "vault",
     target: number,
     progress: FilesProgress,
     path: string,
     previousProgress: FilesProgress,
   ) {
-    super(id, name, period, scope, target, progress, path);
+    super(id, name, period, target, progress, path);
     this.previousProgress = previousProgress;
   }
 
@@ -78,7 +74,6 @@ export class WordCountTarget extends Target {
       generateID(),
       this.name,
       this.period,
-      this.scope,
       this.target,
       { ...this.progress },
       this.path,
@@ -149,13 +144,12 @@ export class TimeTarget extends Target {
     id: string,
     name: string,
     period: "daily" | "weekly" | "none",
-    scope: "file" | "folder" | "vault",
     target: number,
     progress: FilesProgress,
     path: string,
     multiplier = 1000,
   ) {
-    super(id, name, period, scope, target, progress, path);
+    super(id, name, period, target, progress, path);
     this.multiplier = multiplier;
   }
 
@@ -164,7 +158,6 @@ export class TimeTarget extends Target {
       generateID(),
       this.name,
       this.period,
-      this.scope,
       this.target,
       { ...this.progress },
       this.path,

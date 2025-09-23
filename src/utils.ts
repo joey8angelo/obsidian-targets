@@ -68,9 +68,6 @@ export function msToStr(ms: number) {
 }
 
 export function getFilesFromFolderPath(vault: Vault, path: string): TFile[] {
-  if (path === "") {
-    path = "/";
-  }
   const folder = vault.getAbstractFileByPath(path);
   if (folder && folder instanceof TFolder) {
     return getFilesFromFolder(folder);

@@ -95,9 +95,9 @@ export class TargetView extends ItemView {
     }
 
     // check for valid path
-    const normalizedPath = normalizePath(editingState.path);
+    let normalizedPath = normalizePath(editingState.path);
     const isPathValid =
-      normalizedPath === "" ||
+      normalizedPath === "/" ||
       this.plugin.app.vault.getAbstractFileByPath(normalizedPath) !== null;
     if (!isPathValid) {
       alert("The specified path does not exist in the vault.");
@@ -314,7 +314,7 @@ export class TargetView extends ItemView {
     } else {
       const trackingEl = targetEl.createDiv({ cls: "target-tracking" });
       trackingEl.createEl("p", {
-        text: `Tracking: ${target.path || "entire vault"}`,
+        text: `Tracking: ${target.path === "/" ? "entire vault" : target.path}`,
       });
     }
 

@@ -187,7 +187,6 @@ export default class TargetManager {
           generateID(),
           "New Target",
           "daily",
-          "file",
           1000,
           {},
           "",
@@ -200,15 +199,7 @@ export default class TargetManager {
       ] as WordCountTarget;
     } else {
       this.plugin.settings.targets.push(
-        new TimeTarget(
-          generateID(),
-          "New Target",
-          "daily",
-          "file",
-          1000,
-          {},
-          "",
-        ),
+        new TimeTarget(generateID(), "New Target", "daily", 1000, {}, ""),
       );
       this.plugin.scheduleSave();
       return this.plugin.settings.targets[
