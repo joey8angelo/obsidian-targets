@@ -13,22 +13,23 @@ export default class ScheduleManager {
   }
 
   checkMissedResets() {
-    const lastReset = new Date(this.plugin.settings.lastReset);
-    const nextReset = this.getNextResetTime(lastReset);
-    const presentReset = this.getNextResetTime();
-    while (nextReset.getTime() < presentReset.getTime()) {
-      this.plugin.settings.lastReset = new Date(nextReset);
-      this.targetManager.resetTargets(nextReset);
-      nextReset.setDate(nextReset.getDate() + 1);
+    let currReset = new Date(this.plugin.settings.lastReset);
+    currReset.setDate(currReset.getDate() + 1);
+    const nextReset = this.getNextResetDate();
+    while (currReset.getTime() < nextReset.getTime()) {
+      this.plugin.settings.lastReset = new Date(currReset);
+      this.targetManager.resetTargets(new Date(currReset.getDate() - 1));
+      currReset.setDate(currReset.getDate() + 1);
       this.plugin.scheduleSave();
     }
+    this.plugin.renderTargetView();
   }
 
   scheduleReset() {
     if (this.dailyResetTimeout !== null) {
       window.clearTimeout(this.dailyResetTimeout);
     }
-    const nextReset = this.getNextResetTime();
+    const nextReset = this.getNextResetDate();
     const msUntilReset = nextReset.getTime() - Date.now();
 
     this.dailyResetTimeout = window.setTimeout(() => {
@@ -38,10 +39,11 @@ export default class ScheduleManager {
       this.plugin.targetManager.resetTargets(nextReset);
       this.scheduleReset();
       this.plugin.scheduleSave();
+      this.plugin.renderTargetView();
     }, msUntilReset);
   }
 
-  private getNextResetTime(startFrom: Date = new Date()) {
+  private getNextResetDate(startFrom: Date = new Date()) {
     const nextReset = new Date(startFrom);
     nextReset.setHours(this.plugin.settings.dailyResetHour, 0, 0, 0);
     if (nextReset <= startFrom) {

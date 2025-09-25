@@ -103,12 +103,16 @@ export class TargetView extends ItemView {
       alert("The specified path does not exist in the vault.");
       return;
     }
+
     if (editingState.new) {
+      target.path = normalizedPath;
       this.plugin.targetManager.setupProgressForTarget(target);
+      console.log("Setup progress for new target");
     } else if (target.path !== editingState.path) {
       if (confirm("Changing the path will reset progress. Continue?")) {
-        target.path = editingState.path;
+        target.path = normalizedPath;
         this.plugin.targetManager.setupProgressForTarget(target);
+        console.log("Setup progress for changed path");
       } else {
         return;
       }
@@ -116,7 +120,6 @@ export class TargetView extends ItemView {
 
     // save changes to target
     target.name = editingState.name;
-    target.path = normalizedPath;
     target.period = editingState.period;
     target.target = editingState.target;
     if (target instanceof TimeTarget) {
