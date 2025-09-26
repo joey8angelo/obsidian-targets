@@ -24,7 +24,7 @@ export default class TargetManager {
     this.plugin = plugin;
     this.vault = vault;
     this.workspace = workspace;
-    this.scheduleManager = new ScheduleManager(this.plugin, this);
+    this.scheduleManager = new ScheduleManager(this.plugin);
 
     this.plugin.registerEvent(
       this.vault.on("modify", (file) => this.handleModify(file)),

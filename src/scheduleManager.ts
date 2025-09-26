@@ -1,27 +1,23 @@
 import TargetTracker from "./main";
-import TargetManager from "./targetManager";
+import { addDays } from "./utils";
 
 export default class ScheduleManager {
   private plugin: TargetTracker;
-  private targetManager: TargetManager;
   private dailyResetTimeout: number | null;
 
-  constructor(plugin: TargetTracker, targetManager: TargetManager) {
+  constructor(plugin: TargetTracker) {
     this.plugin = plugin;
-    this.targetManager = targetManager;
     this.dailyResetTimeout = null;
   }
 
   checkMissedResets() {
-    let currReset = new Date(this.plugin.settings.lastReset);
-    currReset.setDate(currReset.getDate() + 1);
-    const nextReset = this.getNextResetDate();
-    while (currReset.getTime() < nextReset.getTime()) {
-      this.plugin.settings.lastReset = new Date(currReset);
-      this.targetManager.resetTargets(new Date(currReset.getDate() - 1));
-      currReset.setDate(currReset.getDate() + 1);
-      this.plugin.scheduleSave();
+    const lastReset = new Date(this.plugin.settings.lastReset);
+    const prevReset = addDays(this.getNextResetDate(), -1);
+    if (lastReset < prevReset) {
+      this.plugin.targetManager.resetTargets(lastReset);
     }
+    this.plugin.settings.lastReset = prevReset;
+    this.plugin.scheduleSave();
     this.plugin.renderTargetView();
   }
 
@@ -33,10 +29,8 @@ export default class ScheduleManager {
     const msUntilReset = nextReset.getTime() - Date.now();
 
     this.dailyResetTimeout = window.setTimeout(() => {
-      const currReset = new Date(nextReset);
-      currReset.setDate(currReset.getDate() - 1);
-      this.plugin.settings.lastReset = currReset;
-      this.plugin.targetManager.resetTargets(nextReset);
+      this.plugin.settings.lastReset = nextReset;
+      this.plugin.targetManager.resetTargets(addDays(nextReset, -1));
       this.scheduleReset();
       this.plugin.scheduleSave();
       this.plugin.renderTargetView();
@@ -47,9 +41,8 @@ export default class ScheduleManager {
     const nextReset = new Date(startFrom);
     nextReset.setHours(this.plugin.settings.dailyResetHour, 0, 0, 0);
     if (nextReset <= startFrom) {
-      nextReset.setDate(nextReset.getDate() + 1);
+      return addDays(nextReset, 1);
     }
-
     return nextReset;
   }
 }

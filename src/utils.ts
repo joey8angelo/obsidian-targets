@@ -92,3 +92,7 @@ export function getFilesFromFolder(folder: TFolder): TFile[] {
 export function generateID(): string {
   return `target_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
+
+export function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
