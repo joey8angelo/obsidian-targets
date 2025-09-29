@@ -127,11 +127,16 @@ export class WordCountTarget extends Target {
     this.progress = {};
     this.previousProgress = {};
     for (const file of files) {
-      this.progress[file.path] = -1;
-    }
-    // set diff on periodic targets
-    if (this.period !== "none") {
-      this.previousProgress = { ...this.progress };
+      if (this.period === "none") {
+        this.progress[file.path] = getWordCount(
+          await this.plugin.app.vault.cachedRead(file),
+          this.plugin.settings.useCommentsInWordCount,
+        );
+        this.previousProgress[file.path] = 0;
+      } else {
+        this.progress[file.path] = -1;
+        this.previousProgress[file.path] = -1;
+      }
     }
   }
 

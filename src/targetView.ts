@@ -82,6 +82,16 @@ export class TargetView extends ItemView {
     }
   }
 
+  private setDataFromEditingState(target: Target, editingState: EditingState) {
+    target.name = editingState.name;
+    target.path = editingState.path;
+    target.period = editingState.period;
+    target.target = editingState.target;
+    if (target instanceof TimeTarget) {
+      target.multiplier = editingState.multiplier;
+    }
+  }
+
   private saveTarget(target: Target, editingState: EditingState) {
     // check for valid name
     if (editingState.name.trim() === "") {
@@ -108,30 +118,26 @@ export class TargetView extends ItemView {
       alert("The specified path does not exist in the vault.");
       return;
     }
+    editingState.path = normalizedPath;
 
     if (editingState.new) {
-      target.path = normalizedPath;
+      this.setDataFromEditingState(target, editingState);
       target.setupProgress();
     } else if (target.path !== editingState.path) {
       if (confirm("Changing the path will reset progress. Continue?")) {
-        target.path = normalizedPath;
+        this.setDataFromEditingState(target, editingState);
         target.setupProgress();
       } else {
         return;
       }
-    }
-    // save changes to target
-    target.name = editingState.name;
-    target.period = editingState.period;
-    target.target = editingState.target;
-    if (target instanceof TimeTarget) {
-      target.multiplier = editingState.multiplier;
+    } else {
+      this.setDataFromEditingState(target, editingState);
     }
 
     this.editingStates.delete(target.id);
 
     this.renderContent();
-    this.plugin.forceSave();
+    this.plugin.scheduleSave();
   }
 
   private cancelSave(target: Target, editingState: EditingState) {
