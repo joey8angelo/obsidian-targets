@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import TargetTracker from "./main";
 import { msToStr } from "./utils";
-import { Target, TimeTarget, WordCountTarget } from "./target";
+import Target, { WordCountTarget, TimeTarget } from "./target";
 
 export const VIEW_TYPE_TARGET = "target-view";
 
@@ -48,6 +48,11 @@ export class TargetView extends ItemView {
 
   async onOpen() {
     this.renderContent();
+    // Focus the view when mouse enters
+    this.contentEl.addEventListener("mouseenter", (e) => {
+      e.preventDefault();
+      this.plugin.app.workspace.setActiveLeaf(this.leaf, { focus: true });
+    });
   }
 
   async onClose() {}
@@ -71,7 +76,7 @@ export class TargetView extends ItemView {
       force ||
       confirm(`Are you sure you want to delete target "${target.name}"?`)
     ) {
-      this.plugin.settings.targets.remove(target);
+      this.plugin.targetManager.deleteTarget(target);
       this.editingStates.delete(target.id);
       this.renderContent();
     }
@@ -106,18 +111,15 @@ export class TargetView extends ItemView {
 
     if (editingState.new) {
       target.path = normalizedPath;
-      this.plugin.targetManager.setupProgressForTarget(target);
-      console.log("Setup progress for new target");
+      target.setupProgress();
     } else if (target.path !== editingState.path) {
       if (confirm("Changing the path will reset progress. Continue?")) {
         target.path = normalizedPath;
-        this.plugin.targetManager.setupProgressForTarget(target);
-        console.log("Setup progress for changed path");
+        target.setupProgress();
       } else {
         return;
       }
     }
-
     // save changes to target
     target.name = editingState.name;
     target.period = editingState.period;
@@ -324,7 +326,7 @@ export class TargetView extends ItemView {
     this.buildFooter(targetEl, target, editingState);
   }
 
-  buildHabitGrid(container: HTMLElement) {
+  private buildHabitGrid(container: HTMLElement) {
     const headerEl = container.createDiv({ cls: "habit-grid-header" });
     headerEl.createEl("h3", { text: `${this.selectedYear} Progress` });
     const yearButtonsEl = headerEl.createDiv({ cls: "habit-year-buttons" });
@@ -451,7 +453,7 @@ export class TargetView extends ItemView {
 
     // Targets List
     const targets = content.createDiv({ cls: "targets-container" });
-    for (const target of this.plugin.settings.targets) {
+    for (const target of this.plugin.targetManager.targets) {
       this.buildTarget(targets, target);
     }
 

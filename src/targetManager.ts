@@ -1,65 +1,164 @@
-import {
-  TAbstractFile,
-  TFile,
-  Vault,
-  Workspace,
-  WorkspaceLeaf,
-  MarkdownView,
-} from "obsidian";
-import { getWordCount, getFilesFromFolderPath, generateID } from "./utils";
+import { TAbstractFile, TFile, WorkspaceLeaf, MarkdownView } from "obsidian";
+import { generateID } from "./utils";
 import TargetTracker from "./main";
 import ScheduleManager from "./scheduleManager";
-import { Target, WordCountTarget, TimeTarget } from "./target";
+import Target, { WordCountTarget, TimeTarget, TargetData } from "./target";
 
 export default class TargetManager {
   plugin: TargetTracker;
-  vault: Vault;
-  workspace: Workspace;
-
-  activeFile: TFile | null = null;
-  activeFileTimestamp: number;
   scheduleManager: ScheduleManager;
+  targets: Target[] = [];
+  private activeFile: TFile | null = null;
+  private activeFileTimestamp: number;
 
-  constructor(plugin: TargetTracker, vault: Vault, workspace: Workspace) {
+  constructor(plugin: TargetTracker, TargetsData: TargetData[]) {
     this.plugin = plugin;
-    this.vault = vault;
-    this.workspace = workspace;
+
+    this.rehydrateTargets(TargetsData);
+
     this.scheduleManager = new ScheduleManager(this.plugin);
 
     this.plugin.registerEvent(
-      this.vault.on("modify", (file) => this.handleModify(file)),
+      this.plugin.app.vault.on("modify", (file) => this.handleModify(file)),
     );
-    this.workspace.onLayoutReady(() => {
+    this.plugin.app.workspace.onLayoutReady(() => {
       this.plugin.registerEvent(
-        this.vault.on("create", (file) => this.handleCreate(file)),
+        this.plugin.app.vault.on("create", (file) => this.handleCreate(file)),
       );
       this.scheduleManager.checkMissedResets();
       this.scheduleManager.scheduleReset();
     });
     this.plugin.registerEvent(
-      this.vault.on("delete", (file) => this.handleDelete(file)),
+      this.plugin.app.vault.on("delete", (file) => this.handleDelete(file)),
     );
     this.plugin.registerEvent(
-      this.vault.on("rename", (file, oldPath) =>
+      this.plugin.app.vault.on("rename", (file, oldPath) =>
         this.handleRename(file, oldPath),
       ),
     );
     this.plugin.registerEvent(
-      this.workspace.on("active-leaf-change", (leaf) =>
+      this.plugin.app.workspace.on("active-leaf-change", (leaf) =>
         this.handleActiveLeafChange(leaf),
       ),
     );
   }
 
+  private rehydrateTargets(targetsData: TargetData[]) {
+    this.targets = [];
+    for (const data of targetsData) {
+      let target: Target;
+      if (data.concreteData.type === "wordCount") {
+        target = new WordCountTarget(
+          data.id,
+          data.name,
+          data.period,
+          data.target,
+          data.progress,
+          data.path,
+          this.plugin,
+          data.concreteData.previousProgress || {},
+        );
+      } else if (data.concreteData.type === "time") {
+        target = new TimeTarget(
+          data.id,
+          data.name,
+          data.period,
+          data.target,
+          data.progress,
+          data.path,
+          this.plugin,
+          data.concreteData.multiplier || 1000,
+        );
+      } else {
+        continue;
+      }
+      this.targets.push(target);
+    }
+  }
+
+  private archiveTarget(target: Target, date: Date) {
+    if (target.period === "none") return;
+    const totalProgress = target.getTotalProgress();
+    if (totalProgress === 0) return;
+
+    const prd = target.period;
+    const newDate = new Date(date);
+    newDate.setHours(0, 0, 0, 0);
+    const dtstr = newDate.toISOString().split("T")[0];
+    const typ = target.type;
+    if (!(dtstr in this.plugin.settings.progressHistory[prd])) {
+      this.plugin.settings.progressHistory[prd][dtstr] = {};
+    }
+    if (!(typ in this.plugin.settings.progressHistory[prd][dtstr])) {
+      this.plugin.settings.progressHistory[prd][dtstr][typ] = {
+        target: 0,
+        progress: 0,
+      };
+    }
+    this.plugin.settings.progressHistory[prd][dtstr][typ].target +=
+      target.target;
+    this.plugin.settings.progressHistory[prd][dtstr][typ].progress +=
+      totalProgress;
+
+    this.plugin.scheduleSave();
+  }
+
+  private async handleModify(file: TAbstractFile) {
+    if (!(file instanceof TFile)) return;
+    await Promise.all(this.targets.map((t) => t.fileModify(file)));
+    this.activeFileTimestamp = Date.now();
+    this.plugin.scheduleSave();
+    this.plugin.renderTargetView();
+  }
+  private async handleCreate(file: TAbstractFile) {
+    if (!(file instanceof TFile)) return;
+    await Promise.all(this.targets.map((t) => t.fileCreate(file)));
+    this.plugin.scheduleSave();
+    this.plugin.renderTargetView();
+  }
+  private async handleDelete(file: TAbstractFile) {
+    if (!(file instanceof TFile)) return;
+    await Promise.all(this.targets.map((t) => t.fileDelete(file)));
+    this.plugin.scheduleSave();
+    this.plugin.renderTargetView();
+  }
+  private async handleRename(file: TAbstractFile, oldPath: string) {
+    if (!(file instanceof TFile)) return;
+    await Promise.all(this.targets.map((t) => t.fileRename(oldPath, file)));
+    this.plugin.scheduleSave();
+    this.plugin.renderTargetView();
+  }
+  private handleActiveLeafChange(leaf: WorkspaceLeaf | null) {
+    if (
+      leaf &&
+      leaf.view instanceof MarkdownView &&
+      leaf.view.file &&
+      leaf.view.file instanceof TFile
+    ) {
+      const file = leaf.view.file;
+      this.activeFile = file;
+      this.activeFileTimestamp = Date.now();
+      this.targets.forEach((t) => t.fileOpen(file));
+    } else {
+      this.activeFile = null;
+    }
+    this.plugin.scheduleSave();
+    this.plugin.renderTargetView();
+  }
+
+  getTargetsData() {
+    return this.targets.map((target) => target.getData());
+  }
+
   resetTargets(date: Date) {
     const weekday = date.getDay();
-    for (const [i, target] of this.plugin.settings.targets.entries()) {
+    for (const [i, target] of this.targets.entries()) {
       if (
         target.period === "daily" ||
         (target.period === "weekly" &&
           weekday === this.plugin.settings.weeklyResetDay)
       ) {
-        this.plugin.settings.targets[i] = target.getNextTarget();
+        this.targets[i] = target.getNextTarget();
         this.deleteTarget(target);
         this.archiveTarget(target, date);
       }
@@ -67,122 +166,16 @@ export default class TargetManager {
   }
 
   deleteTarget(target: Target) {
-    for (let i = 0; i < this.plugin.settings.targets.length; i++) {
-      if (target.id === this.plugin.settings.targets[i].id) {
-        this.plugin.settings.targets.splice(i, 1);
+    for (let i = 0; i < this.targets.length; i++) {
+      if (target.id === this.targets[i].id) {
+        this.targets.splice(i, 1);
       }
     }
-  }
-
-  archiveTarget(target: Target, date: Date) {
-    if (target.period === "none") return;
-    const totalProgress = target.getTotalProgress();
-    if (totalProgress === 0) return;
-
-    const newDate = new Date(date);
-    newDate.setHours(0, 0, 0, 0);
-    const datestr = newDate.toISOString().split("T")[0];
-    if (!(datestr in this.plugin.settings.progressHistory[target.period])) {
-      this.plugin.settings.progressHistory[target.period][datestr] = {
-        wordCount: { target: 0, progress: 0 },
-        time: { target: 0, progress: 0 },
-      };
-    }
-    this.plugin.settings.progressHistory[target.period][datestr][
-      target.type
-    ].target += target.target;
-    this.plugin.settings.progressHistory[target.period][datestr][
-      target.type
-    ].progress += totalProgress;
-
-    this.plugin.scheduleSave();
-  }
-
-  async handleModify(file: TAbstractFile) {
-    if (!(file instanceof TFile)) return;
-    const textPromise = this.vault.cachedRead(file);
-    const now = Date.now();
-    const elapsed = Math.min(
-      this.plugin.settings.maxIdleTime,
-      now - this.activeFileTimestamp,
-    );
-    this.activeFileTimestamp = now;
-    for (const target of this.plugin.settings.targets) {
-      if (target instanceof WordCountTarget) {
-        target.updateProgress(
-          file,
-          getWordCount(
-            await textPromise,
-            this.plugin.settings.useCommentsInWordCount,
-          ),
-        );
-      } else if (target instanceof TimeTarget) {
-        target.updateProgress(file, elapsed);
-      }
-      this.plugin.scheduleSave();
-    }
-    this.plugin.renderTargetView();
-  }
-
-  async handleCreate(file: TAbstractFile) {
-    if (!(file instanceof TFile)) return;
-    const textPromise = this.vault.cachedRead(file);
-    for (const target of this.plugin.settings.targets) {
-      if (target instanceof WordCountTarget) {
-        target.updateProgress(
-          file,
-          getWordCount(
-            await textPromise,
-            this.plugin.settings.useCommentsInWordCount,
-          ),
-        );
-      }
-    }
-    this.plugin.scheduleSave();
-    this.plugin.renderTargetView();
-  }
-  handleDelete(file: TAbstractFile) {
-    if (!(file instanceof TFile)) return;
-    for (const target of this.plugin.settings.targets) {
-      target.removeFile(file.path);
-    }
-    this.plugin.scheduleSave();
-    this.plugin.renderTargetView();
-  }
-  handleRename(file: TAbstractFile, oldPath: string) {
-    if (!(file instanceof TFile)) return;
-    for (const target of this.plugin.settings.targets) {
-      target.renameFile(oldPath, file.path);
-    }
-    this.plugin.scheduleSave();
-    this.plugin.renderTargetView();
-  }
-  handleActiveLeafChange(leaf: WorkspaceLeaf | null) {
-    if (this.activeFile) {
-      const now = Date.now();
-      const elapsed = Math.min(
-        this.plugin.settings.maxIdleTime,
-        now - this.activeFileTimestamp,
-      );
-      for (const target of this.plugin.settings.targets) {
-        if (target instanceof TimeTarget) {
-          target.updateProgress(this.activeFile, elapsed);
-        }
-      }
-    }
-    if (!leaf || !(leaf.view instanceof MarkdownView)) {
-      this.activeFile = null;
-    } else {
-      this.activeFile = leaf.view.file;
-      this.activeFileTimestamp = Date.now();
-    }
-    this.plugin.scheduleSave();
-    this.plugin.renderTargetView();
   }
 
   newTarget(type: "wordCount" | "time") {
     if (type === "wordCount") {
-      this.plugin.settings.targets.push(
+      this.targets.push(
         new WordCountTarget(
           generateID(),
           "New Target",
@@ -190,43 +183,27 @@ export default class TargetManager {
           1000,
           {},
           "",
+          this.plugin,
           {},
         ),
       );
       this.plugin.scheduleSave();
-      return this.plugin.settings.targets[
-        this.plugin.settings.targets.length - 1
-      ] as WordCountTarget;
+      return this.targets[this.targets.length - 1] as WordCountTarget;
     } else {
-      this.plugin.settings.targets.push(
-        new TimeTarget(generateID(), "New Target", "daily", 1000, {}, ""),
+      this.targets.push(
+        new TimeTarget(
+          generateID(),
+          "New Target",
+          "daily",
+          1000,
+          {},
+          "",
+          this.plugin,
+        ),
       );
       this.plugin.scheduleSave();
-      return this.plugin.settings.targets[
-        this.plugin.settings.targets.length - 1
-      ] as TimeTarget;
+      return this.targets[this.targets.length - 1] as TimeTarget;
     }
-  }
-
-  async setupProgressForTarget(target: Target) {
-    const files = getFilesFromFolderPath(this.vault, target.path);
-    target.resetProgress(files);
-    // setup the previous progress for word count targets
-    if (target instanceof WordCountTarget) {
-      for (const file of files) {
-        const progress = getWordCount(
-          await this.vault.cachedRead(file),
-          this.plugin.settings.useCommentsInWordCount,
-        );
-        target.updateProgress(file, progress);
-      }
-      // set diff on periodic targets
-      if (target.period !== "none") {
-        target.previousProgress = { ...target.progress };
-      }
-    }
-    this.plugin.scheduleSave();
-    this.plugin.renderTargetView();
   }
 
   getYearProgress(
@@ -265,5 +242,15 @@ export default class TargetManager {
     }
     results = results.reverse();
     return results;
+  }
+
+  getElapsedTimeOnActiveFile() {
+    if (this.activeFile && this.activeFileTimestamp) {
+      return Math.min(
+        this.plugin.settings.maxIdleTime,
+        Date.now() - this.activeFileTimestamp,
+      );
+    }
+    return 0;
   }
 }
