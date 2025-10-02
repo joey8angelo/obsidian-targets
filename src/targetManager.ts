@@ -1,5 +1,5 @@
 import { TAbstractFile, TFile, WorkspaceLeaf, MarkdownView } from "obsidian";
-import { generateID } from "./utils";
+import { generateID, addDays } from "./utils";
 import TargetTracker from "./main";
 import ScheduleManager from "./scheduleManager";
 import Target, { WordCountTarget, TimeTarget, TargetData } from "./target";
@@ -211,37 +211,49 @@ export default class TargetManager {
     period: "daily" | "weekly",
     type: "wordCount" | "time",
   ) {
-    let date = new Date(year, 11, 31);
-    let results = [];
-    let prevProgress = 0;
-    let prevDate = new Date(date);
-    while (date.getFullYear() === year) {
-      const datestr = date.toISOString().split("T")[0];
-      const res = this.plugin.settings.progressHistory[period][datestr];
-      // fill in gaps between week progress entries
-      if (!res && period === "weekly") {
-        results.push({ date: new Date(date), progress: prevProgress });
-        date.setDate(date.getDate() - 1);
-        if (
-          (prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24) >=
-          7
-        ) {
-          prevProgress = 0;
-        }
-        continue;
+    let currDate = addDays(new Date(year + 1, 0, 1), -1);
+    const endDate = new Date(year, 0, 1);
+    const result: { date: Date; target: number; progress: number }[] = [];
+    let prevWeekResult: {
+      date: Date;
+      target: number;
+      progress: number;
+    } | null = null;
+    while (currDate >= endDate) {
+      const dtstr = currDate.toISOString().split("T")[0];
+      if (
+        dtstr in this.plugin.settings.progressHistory[period] &&
+        type in this.plugin.settings.progressHistory[period][dtstr]
+      ) {
+        result.push({
+          date: new Date(currDate),
+          target:
+            this.plugin.settings.progressHistory[period][dtstr][type].target,
+          progress:
+            this.plugin.settings.progressHistory[period][dtstr][type].progress,
+        });
+        prevWeekResult = result[result.length - 1];
+      } else if (period === "weekly" && prevWeekResult) {
+        result.push({
+          date: new Date(currDate),
+          target: prevWeekResult.target,
+          progress: prevWeekResult.progress,
+        });
+      } else {
+        result.push({ date: new Date(currDate), target: 0, progress: 0 });
       }
-      const progress = res
-        ? res[type].target !== 0
-          ? res[type].progress / res[type].target
-          : 0
-        : 0;
-      results.push({ date: new Date(date), progress: progress });
-      prevProgress = progress;
-      prevDate = new Date(date);
-      date.setDate(date.getDate() - 1);
+      currDate = addDays(currDate, -1);
+      // if prev week exists and is more than 7 days ago, clear it
+      if (
+        prevWeekResult &&
+        (currDate.getTime() - prevWeekResult.date.getTime()) /
+          (1000 * 60 * 60 * 24) >=
+          7
+      ) {
+        prevWeekResult = null;
+      }
     }
-    results = results.reverse();
-    return results;
+    return result.reverse();
   }
 
   getElapsedTimeOnActiveFile() {

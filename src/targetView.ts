@@ -371,14 +371,18 @@ export class TargetView extends ItemView {
       this.selectedPeriod,
       this.selectedType,
     );
+    console.log(cellData);
 
     for (const cell of cellData) {
       const cellEl = gridEl.createDiv({ cls: "habit-cell" });
       const cellInnerEl = cellEl.createDiv({ cls: "habit-cell-inner" });
       if (cell.date < new Date()) {
-        const progress = this.plugin.settings.showNegativeProgress
-          ? cell.progress
-          : Math.max(0, cell.progress);
+        const progress =
+          cell.target === 0
+            ? 0
+            : (this.plugin.settings.showNegativeProgress
+                ? cell.progress
+                : Math.max(0, cell.progress)) / cell.target;
         const progressLevel = Math.min(10, Math.floor(progress * 10));
         cellInnerEl.addClass(`progress${progressLevel}`);
         setTooltip(
